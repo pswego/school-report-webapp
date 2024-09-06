@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>딥페이크 범죄 신고 웹사이트</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <style>
+        /* Global Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f2f3f7;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 32px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        h2 {
+            font-size: 20px;
+            color: #555;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        input, textarea, button {
+            width: 100%;
+            padding: 14px;
+            margin: 12px 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        input:focus, textarea:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.25);
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 60px auto;
+            padding: 30px;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Search & Report Boxes */
+        .search, .report {
+            background-color: #f9fafc;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .search h2, .report h2 {
+            font-size: 22px;
+            color: #444;
+            margin-bottom: 20px;
+        }
+
+        /* Search Results */
+        .search ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .search li {
+            padding: 12px;
+            border-bottom: 1px solid #eaeaea;
+            color: #555;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+        }
+
+        .search li:hover {
+            background-color: #f0f4fa;
+        }
+
+        .search li:last-child {
+            border-bottom: none;
+        }
+
+        /* Map */
+        #map {
+            height: 500px;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Status Message */
+        #reportStatus {
+            margin-top: 15px;
+            font-weight: 500;
+        }
+
+        /* Media Query for Responsiveness */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            h2 {
+                font-size: 18px;
+            }
+
+            input, textarea, button {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>딥페이크 범죄 신고 웹사이트</h1>
+
+        <div class="search">
+            <h2>학교 검색</h2>
+            <input type="text" id="searchQuery" placeholder="학교 이름 검색">
+            <button onclick="searchSchool()">검색</button>
+            <ul id="searchResults"></ul>
+        </div>
+
+        <div class="report">
+            <h2>학교 제보</h2>
+            <input type="email" id="reportEmail" placeholder="이메일">
+            <textarea id="reportMessage" rows="5" placeholder="제보 내용을 입력하세요"></textarea>
+            <button onclick="reportSchool()">제보하기</button>
+            <p id="reportStatus"></p>
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+    <!-- Include Leaflet.js -->
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script>
+        // Leaflet map initialization
+        let map = L.map('map').setView([37.5665, 126.9780], 10); // 서울 중심 좌표
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+        // Marker function
+        function addMarker(lat, lng, name) {
+            const latitude = parseFloat(lat).toFixed(5);   // 위도 소수점 5자리 표시
+            const longitude = parseFloat(lng).toFixed(5);  // 경도 소수점 5자리 표시
+
+            const marker = L.marker([latitude, longitude]).addTo(map)
+                .bindPopup(`${name} (위도: ${latitude}, 경도: ${longitude})`).openPopup();
+
+            // 마커를 지도 중앙으로 이동하고 적절한 줌 레벨로 설정
+            map.setView([latitude, longitude], 16); // 16은 적당한 줌 레벨로 건물들이 보이게 설정
+        }
+
+        // 학교 검색 함수
+        async function searchSchool() {
+            const query = document.getElementById('searchQuery').value;
+            const response = await fetch(`/api/search?name=${query}`);
+            const schools = await response.json();
+
+            const results = document.getElementById('searchResults');
+            results.innerHTML = '';
+
+            if (schools.length > 0) {
+                schools.forEach((school, index) => {
+                    const latitude = school.latitude.toFixed(5);   // 위도 소수점 5자리 표시
+                    const longitude = school.longitude.toFixed(5); // 경도 소수점 5자리 표시
+
+                    const li = document.createElement('li');
+                    li.textContent = `${school.name} (위도: ${latitude}, 경도: ${longitude})`;
+                    results.appendChild(li);
+
+                    // 리스트 항목을 클릭하면 해당 학교 위치로 이동
+                    li.addEventListener('click', () => {
+                        addMarker(latitude, longitude, school.name);
+                    });
+
+                    // 검색 결과로 얻은 학교 마커 추가
+                    addMarker(latitude, longitude, school.name);
+                });
+            } else {
+                results.innerHTML = '<li>검색 결과가 없습니다.</li>';
+            }
+        }
+
+        // 학교 제보 함수
+        async function reportSchool() {
+            const email = document.getElementById('reportEmail').value;
+            const message = document.getElementById('reportMessage').value;
+
+            const response = await fetch('/api/report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, message })
+            });
+
+            const result = await response.json();
+            const status = document.getElementById('reportStatus');
+            if (response.ok) {
+                status.textContent = result.message;
+                status.style.color = 'green';
+            } else {
+                status.textContent = result.error;
+                status.style.color = 'red';
+            }
+        }
+    </script>
+</body>
+</html>

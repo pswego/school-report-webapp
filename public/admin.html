@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 페이지</title>
+</head>
+<body>
+    <h1>학교 관리</h1>
+
+    <h2>학교 추가</h2>
+    <form id="addSchoolForm">
+        <input type="text" id="name" placeholder="학교 이름" required>
+        <input type="number" id="latitude" placeholder="위도" required>
+        <input type="number" id="longitude" placeholder="경도" required>
+        <button type="submit">추가</button>
+    </form>
+
+    <h2>학교 삭제</h2>
+    <input type="text" id="deleteName" placeholder="삭제할 학교 이름" required>
+    <button onclick="deleteSchool()">삭제</button>
+
+    <script>
+        // 학교 추가 폼 처리
+        document.getElementById('addSchoolForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // 폼 제출 기본 동작 막기
+
+            // 폼 데이터 가져오기
+            const name = document.getElementById('name').value;
+            const latitude = document.getElementById('latitude').value;
+            const longitude = document.getElementById('longitude').value;
+
+            try {
+                // POST 요청으로 학교 추가
+                const response = await fetch('/admin/add-school', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, latitude, longitude })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                alert(result.message); // 서버에서의 응답을 alert로 표시
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('학교 추가 중 오류가 발생했습니다.');
+            }
+        });
+
+        // 학교 삭제 처리
+        async function deleteSchool() {
+            const name = document.getElementById('deleteName').value;
+
+            try {
+                // DELETE 요청으로 학교 삭제
+                const response = await fetch(`/admin/delete-school/${name}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                alert(result.message); // 서버에서의 응답을 alert로 표시
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('학교 삭제 중 오류가 발생했습니다.');
+            }
+        }
+    </script>
+</body>
+</html>
